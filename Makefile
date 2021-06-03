@@ -21,7 +21,10 @@ all:		$(TARGETS)
 
 
 %.ihx : %.rel
-		$(CC) $(LDFLAGS) $(LDLIBS) $^ -o $@
+		$(CC) $(LDFLAGS) $(LDLIBS) $^ --out-fmt-ihx -o $@
+
+%.s19 : %.rel
+		$(CC) $(LDFLAGS) $(LDLIBS) $^ --out-fmt-s19 -o $@
 
 %.rel : %.s
 		$(AS) $(ASFLAGS) -losp $@ $<

@@ -5,6 +5,7 @@
 *.lst
 *.map
 *.noi
+*.s19
 *.sym
 *.elf
 *.o
