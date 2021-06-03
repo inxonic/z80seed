@@ -4,7 +4,7 @@
 # without any warranty.
 
 
-TARGETS=	crt0.rel bootstrap.ihx
+TARGETS=	crt0.rel z80seed.ihx
 
 CODELOC ?=	0x0040
 DATALOC ?=	0xfe00
