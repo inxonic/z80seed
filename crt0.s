@@ -39,11 +39,6 @@
 	rst	0x38
 	rst	0x38
 
-	.org	0x05
-_exit::
-	halt
-	jr	_exit
-
 	.org	0x08
 puts::
 	ld	a, (hl)
@@ -68,6 +63,9 @@ putchar:
 	in	a, (ace_lsr)
 	bit	ace_thre, a
 	jr	z, putchar
+	jr	putchar_2
+	.org	0x04
+putchar_2:
 	ld	a, c
 	out	(ace_thr), a
 	ret
@@ -77,8 +75,7 @@ putchar:
 init:
 	;; Set stack pointer directly above top of memory.
 	ld	sp, #0x0000
-	call	_main
-	jr	_exit
+	jp	_main
 
 	;; Ordering of segments for the linker.
 	.area	_HOME

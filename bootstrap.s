@@ -9,7 +9,7 @@ ldr_str:
 	.db	0x00
 
 	.area	_readbytes (ABS)
-	.org	0x2a
+	.org	0x28
 readbytes:
 	push	bc
 	call	getxbyte
@@ -46,6 +46,19 @@ prompt:
 	ld	hl, #ldr_str
 	rst	0x08
 
+	ld	bc, #5 << 8 | <'.
+1$:
+	in	a, (ace_lsr)
+	rrca
+	jr	c, writemem
+	dec	hl
+	ld	a, h
+	or	l
+	jr	nz, 1$
+	rst	0x20
+	djnz	1$
+	jp	0x7c00
+
 writemem:
 	ld	de, #buffer
 	xor	a
@@ -59,7 +72,7 @@ writemem:
 	cp	#':
 	jr	nz, error
 	ld	b, #4
-	call	readbytes
+	rst	0x28
 	jr	nc, error
 	ld	a, l
 	ld	hl, #buffer
@@ -81,12 +94,12 @@ writemem:
 	xor	a
 	add	b
 	jr	z, 3$
-	call	readbytes
+	rst	0x28
 	jr	nc, error
 3$:
 	ld	de, #buffer
 	ld	b, #1
-	call	readbytes
+	rst	0x28
 	jr	nc, error
 	; verify checksum
 	ld	a, l
