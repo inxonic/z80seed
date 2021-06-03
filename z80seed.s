@@ -5,7 +5,7 @@
 	.area	_ldr_str (ABS)
 	.org	0x1a
 ldr_str:
-	.ascii	/\nLDR\n/
+	.ascii	/\nLDR /
 	.db	0x00
 
 	.area	_readbytes (ABS)
@@ -46,7 +46,7 @@ prompt:
 	ld	hl, #ldr_str
 	rst	0x08
 
-	ld	bc, #5 << 8 | <'.
+	ld	bc, #6 << 8 | <'.
 1$:
 	in	a, (ace_lsr)
 	rrca
@@ -57,7 +57,8 @@ prompt:
 	jr	nz, 1$
 	rst	0x20
 	djnz	1$
-	jp	0x7c00
+	call	0x7c00
+	rst	0x38
 
 writemem:
 	ld	de, #buffer
@@ -126,14 +127,15 @@ writemem:
 	rst	0x20
 	ld	c, #'\n
 	rst	0x20
-	jp	0x8000
+	call	0x8000
+	rst	0x38
 
 error:
 	ld	c, #'\n
 	rst	0x20
 	ld	c, #'?
 	rst	0x20
-	jp	prompt
+	jr	prompt
 
 	; read one hex byte from the serial interface and store it to A
 	; carry flag is set on success, else return output of getxdigit
