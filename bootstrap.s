@@ -137,7 +137,7 @@ error:
 
 	; read one hex byte from the serial interface and store it to A
 	; carry flag is set on success, else return output of getxdigit
-	; modifies: A, F, B
+	; modifies: A, F, B, C
 getxbyte:
 	call	getxdigit
 	cp	#0x10
@@ -157,7 +157,7 @@ getxbyte:
 	; read one xdigit from the serial interface and store it
 	; to the lower nibble in A upper nibble is 0 on success
 	; return 0x10 on invalid input and 0xff on EOT (ASCII 0x04)
-	; modifies: A, F
+	; modifies: A, F, C
 getxdigit:
 	rst	0x10
 	sub	#0x30
