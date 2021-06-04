@@ -4,9 +4,9 @@
 # without any warranty.
 
 
-TARGETS=	crt0.rel z80seed.ihx
+TARGETS=	z80seed.ihx
 
-CODELOC ?=	0x0040
+CODELOC ?=	0x0038
 DATALOC ?=	0xfe00
 
 AS=		sdcc-sdasz80
@@ -14,7 +14,7 @@ CC=		sdcc-sdcc
 
 CFLAGS=		-mz80
 LDFLAGS=	-mz80 --code-loc $(CODELOC) --data-loc $(DATALOC) --no-std-crt0
-LDLIBS=		crt0.rel
+LDLIBS=		
 
 
 all:		$(TARGETS)

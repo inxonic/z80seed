@@ -1,14 +1,55 @@
-	.module	main
+	.module	z80seed
 
 	.include	"serial_defs.s"
 
-	.area	_ldr_str (ABS)
-	.org	0x1a
-ldr_str:
-	.ascii	/\nLDR /
-	.db	0x00
+	.area	_DATA
+buffer:
+	.blkb	4
 
-	.area	_readbytes (ABS)
+	.area	_HEADER (ABS)
+	;; Reset vector
+	.org 	0x00
+
+	rst	0x38
+	rst	0x38
+	rst	0x38
+	rst	0x38
+	rst	0x38
+	rst	0x38
+	rst	0x38
+	rst	0x38
+
+	.org	0x08
+puts:
+	ld	a, (hl)
+	or	a
+	ret	z
+	ld	c, a
+	rst	0x20
+	inc	hl
+	jr	puts
+
+	.org	0x10
+getchar:
+	in	a, (ace_lsr)
+	rrca
+	jr	nc, getchar
+	in	a, (ace_rbr)
+	ld	c, a
+	jr	putchar
+
+	.org	0x20
+putchar:
+	in	a, (ace_lsr)
+	bit	ace_thre, a
+	jr	z, putchar
+	jr	putchar_2
+	.org	0x1c
+putchar_2:
+	ld	a, c
+	out	(ace_thr), a
+	ret
+
 	.org	0x28
 readbytes:
 	push	bc
@@ -23,13 +64,12 @@ readbytes:
 	scf
 	ret
 
-	.area	_DATA
-buffer:
-	.blkb	4
-
 	.area	_CODE
-_main::
-	; Initialize serial: 9600 Baud, 8N1
+init:
+	;; Set stack pointer directly above top of memory.
+	ld	sp, #0x0000
+
+	;; Initialize serial: 9600 Baud, 8N1
 
 	ld	a, #1 << ace_dlab | #1 << ace_wsl1 | #1 << ace_wsl0
 	out	(ace_lcr), a
@@ -175,3 +215,7 @@ getxdigit:
 getxdigit_err:
 	ld	a, #0x10
 	ret
+
+ldr_str:
+	.ascii	/\nLDR /
+	.db	0x00
