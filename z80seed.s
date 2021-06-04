@@ -47,7 +47,7 @@ putchar:
 	ret
 
 ldr_str:
-	.ascii	/\nLDR /
+	.ascii	"\nLDR "
 	.db	0x00
 
 	.org	0x28
@@ -58,16 +58,18 @@ readbytes:
 	rlca
 	rlca
 	rlca
-	push	hl
-	ld	h, a
+	ld	c, a
+	push	bc
 	call	getxdigit
-	ld	c, h
+	pop	bc
 	jr	readbytes_2
 
 	.area	_CODE
 init:
 	;; Set stack pointer directly above top of memory.
 	ld	sp, #0x0000
+	ld	hl, #0x0038
+	push	hl
 
 	;; Initialize serial: 9600 Baud, 8N1
 
@@ -96,11 +98,9 @@ prompt:
 	jr	nz, 1$
 	rst	0x18
 	djnz	1$
-	call	0x7c00
-	rst	0x38
+	jp	0x7c00
 
 readbytes_2:
-	pop	hl
 	ret	c
 	add	c
 	ld	(de), a
@@ -113,16 +113,13 @@ readbytes_2:
 
 writemem:
 	ld	de, #buffer
-	xor	a
-	ld	l, a
+	ld	l, #0
 1$:
 	rst	0x10
-	cp	#'\r
-	jr	z, 1$
-	cp	#'\n
+	call	check_newline
 	jr	z, 1$
 	cp	#':
-	jr	nz, error
+	jr	nz, jump
 	ld	b, #4
 	rst	0x28
 	jr	c, error
@@ -149,40 +146,58 @@ writemem:
 	inc	b
 	rst	0x28
 	jr	c, error
+
 	; verify checksum
 	ld	a, l
 	or	a
 	ld	c, #'c
 	jr	nz, ihx_error
-4$:
+
 	; expect line to end
 	rst	0x10
-	cp	#'\r
-	jr	z, 5$
-	cp	#'\n
-	jr	z, 5$
 	ld	c, #'t
-	jr	ihx_error
-5$:
+	call	check_newline
+	jr	nz, ihx_error
 	dec	h
 	jr	nz, writemem
 
-	ld	c, #'*
-	rst	0x18
-	ld	c, #'\n
-	rst	0x18
-	call	0x8000
+	ld	hl, #success_str
+	rst	0x08
 	rst	0x38
 
 ihx_error:
 	rst	0x18
 
 error:
-	ld	c, #'\n
+	ld	hl, #error_str
+	rst	0x08
+	jp	prompt
+
+jump:
+	cp	#'$
+	jr	nz, error
+	ld	b, #2
+	rst	0x28
+	jr	c, error
+	rst	0x10
+	call	check_newline
+	jr	nz, error
 	rst	0x18
-	ld	c, #'?
-	rst	0x18
-	rst	0x38
+	ex	de, hl
+	dec	hl
+	ld	e, (hl)
+	dec	hl
+	ld	d, (hl)
+	ld	hl, #success_str
+	rst	0x08
+	ex	de, hl
+	jp	(hl)
+
+check_newline:
+	cp	#'\r
+	ret	z
+	cp	#'\n
+	ret
 
 getxdigit:
 	rst	0x10
@@ -198,3 +213,11 @@ getxdigit:
 	ret	c
 	sub	#0xf0
 	ret
+
+error_str:
+	.ascii	"\n?"
+	.db	0
+
+success_str:
+	.ascii	"*\n"
+	.db	0
