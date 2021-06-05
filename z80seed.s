@@ -32,6 +32,7 @@ puts:
 	jr	puts
 
 	; Read one character from serial interface and store it to A.
+	; Clear zero flag if character matches CR or NL, else set zero flag.
 	; modifies: AF, C
 	.org	0x10
 getchar:
@@ -49,13 +50,20 @@ putchar:
 	in	a, (ace_lsr)
 	bit	ace_thre, a
 	jr	z, putchar
-	ld	a, c
-	out	(ace_thr), a
-	ret
+	jr	putchar_2
+	; Continue in code segment due to space limitation.
 
-ldr_str:
-	.ascii	"\nLDR "
-	.db	0x00
+	; Read one xdigit from serial interface and store its value to A.
+	; Clear carry flag on success, set carry flag on invalid input.
+	; modifies: AF, C
+	.org	0x20
+getxdigit:
+	rst	0x10
+	sub	#0x30
+	ret	c
+	cp	#0x0a
+	jr	getxdigit_2
+	; Continue in code segment due to space limitation.
 
 	; Read B hex bytes from the serial interface and store them at DE.
 	; Add each byte to L for a checksum.
@@ -63,7 +71,7 @@ ldr_str:
 	; modifies: AF, BC, DE, L
 	.org	0x28
 readbytes:
-	call	getxdigit
+	rst	0x20
 	ret	c
 	rlca
 	rlca
@@ -71,8 +79,12 @@ readbytes:
 	rlca
 	ld	c, a
 	push	bc
-	call	getxdigit
+	rst	0x20
 	pop	bc
+	ret	c
+	add	c
+	ld	(de), a
+	add	l
 	jr	readbytes_2
 	; Continue in code segment due to space limitation.
 
@@ -116,14 +128,33 @@ prompt:
 	jr	nz, 1$
 	rst	0x18
 	djnz	1$
+monitor:
 	jp	0x7c00
 
 	; Continuation of subroutine at reset vector.
-readbytes_2:
+putchar_2:
+	ld	a, c
+	out	(ace_thr), a
+	cp	#'\r
+	ret	z
+	cp	#'\n
+	ret
+
+	; Continuation of subroutine at reset vector.
+getxdigit_2:
+	ccf
+	ret	nc
+	; Convert character to upper case.
+	res	5, a
+	cp	#0x11
 	ret	c
-	add	c
-	ld	(de), a
-	add	l
+	add	#0xe9
+	ret	c
+	sub	#0xf0
+	ret
+
+	; Continuation of subroutine at reset vector.
+readbytes_2:
 	ld	l, a
 	inc	de
 	djnz	readbytes
@@ -136,7 +167,6 @@ writemem:
 	ld	l, #0
 1$:
 	rst	0x10
-	call	check_newline
 	jr	z, 1$
 	cp	#':
 	jr	nz, jump
@@ -164,12 +194,12 @@ writemem:
 
 	; Skip data block if byte count is zero, inherit A as zero.
 	add	b
-	jr	z, 3$
+	jr	z, 2$
 
 	; Read data bytes.
 	rst	0x28
 	jr	c, error
-3$:
+2$:
 	; Read one checksum byte, inherit B as zero from previous loop.
 	ld	de, #buffer
 	inc	b
@@ -185,7 +215,6 @@ writemem:
 	; Expect line to end.
 	rst	0x10
 	ld	c, #'t
-	call	check_newline
 	jr	nz, ihx_error
 
 	; Check for end of file record type.
@@ -202,17 +231,21 @@ ihx_error:
 error:
 	ld	hl, #error_str
 	rst	0x08
-	jp	prompt
+	jr	prompt
+
+escape:
+	cp	#' 
+	jr	z, monitor
+	jr	error
 
 	; Read hex address from serial interface and jump to it.
 jump:
 	cp	#'$
-	jr	nz, error
+	jr	nz, escape
 	ld	b, #2
 	rst	0x28
 	jr	c, error
 	rst	0x10
-	call	check_newline
 	jr	nz, error
 	ex	de, hl
 	dec	hl
@@ -224,30 +257,9 @@ jump:
 	ex	de, hl
 	jp	(hl)
 
-	; Read one xdigit from serial interface and store its value to A.
-	; Clear carry flag on success, set carry flag on invalid input.
-	; modifies: AF, C
-getxdigit:
-	rst	0x10
-	sub	#0x30
-	ret	c
-	cp	#0x0a
-	ccf
-	ret	nc
-	; Convert character to upper case.
-	res	5, a
-	cp	#0x11
-	ret	c
-	add	#0xe9
-	ret	c
-	sub	#0xf0
-	ret
-
-check_newline:
-	cp	#'\r
-	ret	z
-	cp	#'\n
-	ret
+ldr_str:
+	.ascii	"\n## LDR ##\n"
+	.db	0x00
 
 error_str:
 	.ascii	"\n?"
